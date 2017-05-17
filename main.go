@@ -14,7 +14,6 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
-	"github.com/kr/pretty"
 	"golang.org/x/net/context"
 	"googlemaps.github.io/maps"
 )
@@ -164,7 +163,6 @@ func redux(w http.ResponseWriter, req *http.Request) {
 
 	json_image = ("{\"nombre\":\"" + file_name + "\"}")
 
-	pretty.Println(imgSet.Pix)
 	fmt.Fprintf(w, json_image)
 	bmp.Encode(outfile, imgSet)
 }
