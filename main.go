@@ -23,17 +23,12 @@ type Route struct {
 	Destination string `json:"destination"`
 }
 
-type Coordinates struct {
-	lat float64 `json:"lat"`
-	lng float64 `json:"lng"`
-}
-
 type Image struct {
 	Nombre string `json:"nombre"`
-	Size   Size   `json:size`
+	Tamaño Tamaño `json:tamaño`
 }
 
-type Size struct {
+type Tamaño struct {
 	Alto  int `json:alto`
 	Ancho int `json:ancho`
 }
@@ -78,16 +73,7 @@ func route(w http.ResponseWriter, req *http.Request) {
 		buffer.WriteString(", ")
 		buffer.WriteString("\"lon\":")
 		buffer.WriteString(strconv.FormatFloat(routes[0].Legs[0].Steps[x].StartLocation.Lng, 'f', 5, 64))
-		buffer.WriteString("}, ")
-
-		if x == (len(routes[0].Legs[0].Steps)) {
-			buffer.WriteString("{\"lat\":")
-			buffer.WriteString(strconv.FormatFloat(routes[0].Legs[0].Steps[x].EndLocation.Lat, 'f', 5, 64))
-			buffer.WriteString(", ")
-			buffer.WriteString("\"lon\":")
-			buffer.WriteString(strconv.FormatFloat(routes[0].Legs[0].Steps[x].EndLocation.Lng, 'f', 5, 64))
-			buffer.WriteString("} ")
-		}
+		buffer.WriteString("} ")
 	}
 
 	buffer.WriteString("]}")
@@ -96,27 +82,46 @@ func route(w http.ResponseWriter, req *http.Request) {
 
 func restaurantList(w http.ResponseWriter, req *http.Request) {
 
-	var place Coordinates
+	var place Route
 	_ = json.NewDecoder(req.Body).Decode(&place)
 
 	client, err := maps.NewClient(maps.WithAPIKey("AIzaSyBmelZAhVTODrw_gjtueTuHEs9Aka_z9nM"))
 	if err != nil {
 		log.Fatalf("Fatal Error: %s", err)
 	}
+
+	origin_detail := &maps.GeocodingRequest{
+		Address: place.Origin,
+	}
+
+	origin_response, _ := client.Geocode(context.Background(), origin_detail)
+
 	r := &maps.NearbySearchRequest{
 
-		Location: &maps.LatLng{place.lat, place.lng},
+		Location: &origin_response[0].Geometry.Location,
 		Radius:   100,
 		Type:     maps.PlaceTypeRestaurant,
 	}
 
-	places, err := client.NearbySearch(context.Background(), r)
-	if err != nil {
-		log.Fatalf("Fatal Error: %s", err)
+	places, _ := client.NearbySearch(context.Background(), r)
+	json.NewDecoder(req.Body).Decode(&places)
+
+	buffer := new(bytes.Buffer)
+	buffer.WriteString("{\"restaurantes\":[")
+
+	for x := 0; x < len(places.Results); x++ {
+		buffer.WriteString("{\"nombre\":\"")
+		buffer.WriteString(places.Results[x].Name)
+		buffer.WriteString("\", ")
+		buffer.WriteString("\"lat\":")
+		buffer.WriteString(strconv.FormatFloat(places.Results[x].Geometry.Location.Lat, 'f', 5, 64))
+		buffer.WriteString(", ")
+		buffer.WriteString("\"lon\":")
+		buffer.WriteString(strconv.FormatFloat(places.Results[x].Geometry.Location.Lng, 'f', 5, 64))
 	}
 
-	json.NewEncoder(w).Encode(places)
-	pretty.Println(places)
+	buffer.WriteString("]}")
+	fmt.Fprintf(w, buffer.String())
 }
 
 func redux(w http.ResponseWriter, req *http.Request) {
@@ -130,14 +135,12 @@ func redux(w http.ResponseWriter, req *http.Request) {
 	}
 
 	bounds := bitmap.Bounds()
-	width, height := bounds.Max.X/img.Size.Ancho, bounds.Max.Y/img.Size.Alto
+	width, height := bounds.Max.X/img.Tamaño.Ancho, bounds.Max.Y/img.Tamaño.Alto
 
-	imgSet := image.NewRGBA(image.Rect(0, 0, img.Size.Ancho, img.Size.Alto))
+	imgSet := image.NewRGBA(image.Rect(0, 0, img.Tamaño.Ancho, img.Tamaño.Alto))
 
-	pretty.Println(width, height)
-
-	for y := 0; y < img.Size.Alto; y++ {
-		for x := 0; x < img.Size.Ancho; x++ {
+	for y := 0; y < img.Tamaño.Alto; y++ {
+		for x := 0; x < img.Tamaño.Ancho; x++ {
 			pixel := bitmap.At(x*width, y*height)
 			imgSet.Set(x, y, pixel)
 		}
@@ -169,6 +172,7 @@ func grayScaling(w http.ResponseWriter, req *http.Request) {
 	width, height := bounds.Max.X, bounds.Max.Y
 
 	imgSet := image.NewRGBA(bounds)
+
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
 
