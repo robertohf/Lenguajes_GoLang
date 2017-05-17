@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/kr/pretty"
@@ -19,12 +20,13 @@ import (
 )
 
 type Route struct {
-	Origin      string `json:"origin"`
-	Destination string `json:"destination"`
+	Origen  string `json:"origen"`
+	Destino string `json:"destino"`
 }
 
 type Image struct {
 	Nombre string `json:"nombre"`
+	Data   string `json:"data"`
 	Tamaño Tamaño `json:tamaño`
 }
 
@@ -53,8 +55,8 @@ func route(w http.ResponseWriter, req *http.Request) {
 	}
 
 	r := &maps.DirectionsRequest{
-		Origin:      route.Origin,
-		Destination: route.Destination,
+		Origin:      route.Origen,
+		Destination: route.Destino,
 	}
 
 	routes, _, err := client.Directions(context.Background(), r)
@@ -62,22 +64,25 @@ func route(w http.ResponseWriter, req *http.Request) {
 		log.Fatalf("Fatal Error: %s", err)
 	}
 
-	buffer := new(bytes.Buffer)
-	buffer.WriteString("{\"routes\":[")
+	json_route := new(bytes.Buffer)
+	json_route.WriteString("{\"routes\":[")
 
 	json.NewDecoder(req.Body).Decode(&routes)
 
 	for x := 0; x < len(routes[0].Legs[0].Steps); x++ {
-		buffer.WriteString("{\"lat\":")
-		buffer.WriteString(strconv.FormatFloat(routes[0].Legs[0].Steps[x].StartLocation.Lat, 'f', 5, 64))
-		buffer.WriteString(", ")
-		buffer.WriteString("\"lon\":")
-		buffer.WriteString(strconv.FormatFloat(routes[0].Legs[0].Steps[x].StartLocation.Lng, 'f', 5, 64))
-		buffer.WriteString("} ")
+		json_route.WriteString("{\"lat\":")
+		json_route.WriteString(strconv.FormatFloat(routes[0].Legs[0].Steps[x].StartLocation.Lat, 'f', 5, 64))
+		json_route.WriteString(", ")
+		json_route.WriteString("\"lon\":")
+		json_route.WriteString(strconv.FormatFloat(routes[0].Legs[0].Steps[x].StartLocation.Lng, 'f', 5, 64))
+		json_route.WriteString("}, ")
+
 	}
 
-	buffer.WriteString("]}")
-	fmt.Fprintf(w, buffer.String())
+	c := trimLastChar(json_route.String(), "}, ")
+	c = (c + "} ]}")
+
+	fmt.Fprintf(w, c)
 }
 
 func restaurantList(w http.ResponseWriter, req *http.Request) {
@@ -91,7 +96,7 @@ func restaurantList(w http.ResponseWriter, req *http.Request) {
 	}
 
 	origin_detail := &maps.GeocodingRequest{
-		Address: place.Origin,
+		Address: place.Origen,
 	}
 
 	origin_response, _ := client.Geocode(context.Background(), origin_detail)
@@ -106,22 +111,25 @@ func restaurantList(w http.ResponseWriter, req *http.Request) {
 	places, _ := client.NearbySearch(context.Background(), r)
 	json.NewDecoder(req.Body).Decode(&places)
 
-	buffer := new(bytes.Buffer)
-	buffer.WriteString("{\"restaurantes\":[")
+	json_restaurants := new(bytes.Buffer)
+	json_restaurants.WriteString("{\"restaurantes\":[")
 
 	for x := 0; x < len(places.Results); x++ {
-		buffer.WriteString("{\"nombre\":\"")
-		buffer.WriteString(places.Results[x].Name)
-		buffer.WriteString("\", ")
-		buffer.WriteString("\"lat\":")
-		buffer.WriteString(strconv.FormatFloat(places.Results[x].Geometry.Location.Lat, 'f', 5, 64))
-		buffer.WriteString(", ")
-		buffer.WriteString("\"lon\":")
-		buffer.WriteString(strconv.FormatFloat(places.Results[x].Geometry.Location.Lng, 'f', 5, 64))
+		json_restaurants.WriteString("{\"nombre\":\"")
+		json_restaurants.WriteString(places.Results[x].Name)
+		json_restaurants.WriteString("\", ")
+		json_restaurants.WriteString("\"lat\":")
+		json_restaurants.WriteString(strconv.FormatFloat(places.Results[x].Geometry.Location.Lat, 'f', 5, 64))
+		json_restaurants.WriteString(", ")
+		json_restaurants.WriteString("\"lon\":")
+		json_restaurants.WriteString(strconv.FormatFloat(places.Results[x].Geometry.Location.Lng, 'f', 5, 64))
+
 	}
 
-	buffer.WriteString("]}")
-	fmt.Fprintf(w, buffer.String())
+	c := trimLastChar(json_restaurants.String(), "}, ")
+	c = (c + "} ]}")
+
+	fmt.Fprintf(w, c)
 }
 
 func redux(w http.ResponseWriter, req *http.Request) {
@@ -146,15 +154,18 @@ func redux(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	outfile, err := os.Create("lena_Redux.bmp")
-	if err != nil {
-		fmt.Println(err)
-	}
+	file_name := trimLastChar(img.Nombre, ".bmp")
+	file_name = (file_name + "_Redux.bmp")
 
+	outfile, _ := os.Create(file_name)
 	defer outfile.Close()
 
-	pretty.Println(imgSet)
-	json.NewEncoder(w).Encode(imgSet)
+	json_image := file_name
+
+	json_image = ("{\"nombre\":\"" + file_name + "\"}")
+
+	pretty.Println(imgSet.Pix)
+	fmt.Fprintf(w, json_image)
 	bmp.Encode(outfile, imgSet)
 }
 
@@ -186,15 +197,17 @@ func grayScaling(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	outfile, err := os.Create("lena_GrayScale.bmp")
-	if err != nil {
-		fmt.Println(err)
-	}
+	file_name := trimLastChar(img.Nombre, ".bmp")
+	file_name = (file_name + "_GraySacle.bmp")
 
+	outfile, _ := os.Create(file_name)
 	defer outfile.Close()
 
-	pretty.Println(imgSet)
-	pretty.Println(width, height)
+	json_image := file_name
+
+	json_image = ("{\"nombre\":\"" + file_name + "\"}")
+
+	fmt.Fprintf(w, json_image)
 	bmp.Encode(outfile, imgSet)
 }
 
@@ -205,4 +218,11 @@ func openImage(filename string) (image.Image, error) {
 	}
 	defer f.Close()
 	return bmp.Decode(f)
+}
+
+func trimLastChar(s, suffix string) string {
+	if strings.HasSuffix(s, suffix) {
+		s = s[:len(s)-len(suffix)]
+	}
+	return s
 }
