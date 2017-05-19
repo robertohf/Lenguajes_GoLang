@@ -132,40 +132,6 @@ func restaurantList(w http.ResponseWriter, req *http.Request) {
 	fmt.Fprintf(w, c)
 }
 
-func redux(w http.ResponseWriter, req *http.Request) {
-
-	var img Image
-	_ = json.NewDecoder(req.Body).Decode(&img)
-
-	image_bmp := base64ToImage(img.Data, img.Nombre, 0)
-
-	bitmap, _ := openImage(image_bmp)
-
-	bounds := bitmap.Bounds()
-	width, height := bounds.Max.X/img.Tamaño.Ancho, bounds.Max.Y/img.Tamaño.Alto
-
-	imgSet := image.NewRGBA(image.Rect(0, 0, img.Tamaño.Ancho, img.Tamaño.Alto))
-
-	for y := 0; y < img.Tamaño.Alto; y++ {
-		for x := 0; x < img.Tamaño.Ancho; x++ {
-			pixel := bitmap.At(x*width, y*height)
-			imgSet.Set(x, y, pixel)
-		}
-	}
-
-	file_name := trimLastChar(img.Nombre, ".bmp")
-	file_name = (file_name + "_Redux.bmp")
-
-	outfile, _ := os.Create(file_name)
-	defer outfile.Close()
-
-	bmp.Encode(outfile, imgSet)
-
-	new_img_data := b64.StdEncoding.EncodeToString(imgSet.Pix)
-	json_image := ("{\"nombre\":\"" + file_name + "\",\"data\":\"" + new_img_data + "\"}")
-	fmt.Fprintf(w, json_image)
-}
-
 func grayScaling(w http.ResponseWriter, req *http.Request) {
 
 	var img Image
@@ -195,6 +161,40 @@ func grayScaling(w http.ResponseWriter, req *http.Request) {
 
 	file_name := trimLastChar(img.Nombre, ".bmp")
 	file_name = (file_name + "_GrayScale.bmp")
+
+	outfile, _ := os.Create(file_name)
+	defer outfile.Close()
+
+	bmp.Encode(outfile, imgSet)
+
+	new_img_data := b64.StdEncoding.EncodeToString(imgSet.Pix)
+	json_image := ("{\"nombre\":\"" + file_name + "\",\"data\":\"" + new_img_data + "\"}")
+	fmt.Fprintf(w, json_image)
+}
+
+func redux(w http.ResponseWriter, req *http.Request) {
+
+	var img Image
+	_ = json.NewDecoder(req.Body).Decode(&img)
+
+	image_bmp := base64ToImage(img.Data, img.Nombre, 0)
+
+	bitmap, _ := openImage(image_bmp)
+
+	bounds := bitmap.Bounds()
+	width, height := bounds.Max.X/img.Tamaño.Ancho, bounds.Max.Y/img.Tamaño.Alto
+
+	imgSet := image.NewRGBA(image.Rect(0, 0, img.Tamaño.Ancho, img.Tamaño.Alto))
+
+	for y := 0; y < img.Tamaño.Alto; y++ {
+		for x := 0; x < img.Tamaño.Ancho; x++ {
+			pixel := bitmap.At(x*width, y*height)
+			imgSet.Set(x, y, pixel)
+		}
+	}
+
+	file_name := trimLastChar(img.Nombre, ".bmp")
+	file_name = (file_name + "_Redux.bmp")
 
 	outfile, _ := os.Create(file_name)
 	defer outfile.Close()
