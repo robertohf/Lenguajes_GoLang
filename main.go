@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	b64 "encoding/base64"
 	"encoding/json"
 	"fmt"
 	"golang.org/x/image/bmp"
@@ -136,10 +137,9 @@ func redux(w http.ResponseWriter, req *http.Request) {
 	var img Image
 	_ = json.NewDecoder(req.Body).Decode(&img)
 
-	bitmap, err := openImage(img.Nombre)
-	if err != nil {
-		fmt.Println(err)
-	}
+	image_bmp := base64ToImage(img.Data, img.Nombre, 0)
+
+	bitmap, _ := openImage(image_bmp)
 
 	bounds := bitmap.Bounds()
 	width, height := bounds.Max.X/img.Tamaño.Ancho, bounds.Max.Y/img.Tamaño.Alto
@@ -159,12 +159,11 @@ func redux(w http.ResponseWriter, req *http.Request) {
 	outfile, _ := os.Create(file_name)
 	defer outfile.Close()
 
-	json_image := file_name
-
-	json_image = ("{\"nombre\":\"" + file_name + "\"}")
-
-	fmt.Fprintf(w, json_image)
 	bmp.Encode(outfile, imgSet)
+
+	new_img_data := b64.StdEncoding.EncodeToString(imgSet.Pix)
+	json_image := ("{\"nombre\":\"" + file_name + "\",\"data\":\"" + new_img_data + "\"}")
+	fmt.Fprintf(w, json_image)
 }
 
 func grayScaling(w http.ResponseWriter, req *http.Request) {
@@ -172,10 +171,9 @@ func grayScaling(w http.ResponseWriter, req *http.Request) {
 	var img Image
 	_ = json.NewDecoder(req.Body).Decode(&img)
 
-	bitmap, err := openImage(img.Nombre)
-	if err != nil {
-		fmt.Println(err)
-	}
+	image_bmp := base64ToImage(img.Data, img.Nombre, 1)
+
+	bitmap, _ := openImage(image_bmp)
 
 	bounds := bitmap.Bounds()
 	width, height := bounds.Max.X, bounds.Max.Y
@@ -196,17 +194,37 @@ func grayScaling(w http.ResponseWriter, req *http.Request) {
 	}
 
 	file_name := trimLastChar(img.Nombre, ".bmp")
-	file_name = (file_name + "_GraySacle.bmp")
+	file_name = (file_name + "_GrayScale.bmp")
 
 	outfile, _ := os.Create(file_name)
 	defer outfile.Close()
 
-	json_image := file_name
-
-	json_image = ("{\"nombre\":\"" + file_name + "\"}")
-
-	fmt.Fprintf(w, json_image)
 	bmp.Encode(outfile, imgSet)
+
+	new_img_data := b64.StdEncoding.EncodeToString(imgSet.Pix)
+	json_image := ("{\"nombre\":\"" + file_name + "\",\"data\":\"" + new_img_data + "\"}")
+	fmt.Fprintf(w, json_image)
+}
+
+func base64ToImage(data, nombre string, c int) string {
+
+	img_data := data
+
+	data_current, _ := b64.StdEncoding.DecodeString(img_data)
+
+	bmp_name := trimLastChar(nombre, ".bmp")
+
+	if c != 0 {
+		bmp_name = bmp_name + "_GrayScale.bmp"
+	} else {
+		bmp_name = bmp_name + "_Redux.bmp"
+	}
+
+	outfile, _ := os.Create(bmp_name)
+	outfile.Write(data_current)
+	defer outfile.Close()
+
+	return bmp_name
 }
 
 func openImage(filename string) (image.Image, error) {
