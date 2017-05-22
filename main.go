@@ -168,7 +168,7 @@ func grayScaling(w http.ResponseWriter, req *http.Request) {
 	bmp.Encode(outfile, imgSet)
 
 	new_img_data := b64.StdEncoding.EncodeToString(imgSet.Pix)
-	json_image := ("{\"nombre\":\"" + file_name + "\",\"data\":\"" + new_img_data + "\"}")
+	json_image := ("{\"nombre\":\"" + file_name + "\",\"data\":\"" + lol + "\"}")
 	fmt.Fprintf(w, json_image)
 }
 
