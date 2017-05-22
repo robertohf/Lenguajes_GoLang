@@ -168,7 +168,8 @@ func grayScaling(w http.ResponseWriter, req *http.Request) {
 	bmp.Encode(outfile, imgSet)
 
 	new_img_data := b64.StdEncoding.EncodeToString(imgSet.Pix)
-	json_image := ("{\"nombre\":\"" + file_name + "\",\"data\":\"" + lol + "\"}")
+
+	json_image := ("{\"nombre\":\"" + file_name + "\",\"data\":\"" + new_img_data + "\"}")
 	fmt.Fprintf(w, json_image)
 }
 
@@ -202,6 +203,7 @@ func redux(w http.ResponseWriter, req *http.Request) {
 	bmp.Encode(outfile, imgSet)
 
 	new_img_data := b64.StdEncoding.EncodeToString(imgSet.Pix)
+
 	json_image := ("{\"nombre\":\"" + file_name + "\",\"data\":\"" + new_img_data + "\"}")
 	fmt.Fprintf(w, json_image)
 }
